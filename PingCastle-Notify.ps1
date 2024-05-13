@@ -25,6 +25,9 @@ $teamsUri = "https://xxxxxxxxx.office.com/webhookb2/xxxxxxxxxxxxx/IncomingWebhoo
 $print_current_result = 1
 ### END ###
 
+$googleChat = 1
+$googleChatWebhookUrl = "https://chat.googleapis.com/v1/spaces/XXXXXXX/messages?key=YYYYYYYYY&token=ZZZZZZZZZ"
+
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
@@ -107,6 +110,15 @@ $BodyTeams = @"
 - add_new_vuln
 "@
 
+Function Send_ToGoogleChat($message) {
+    $googleChatBody = @{
+        "text" = $message
+    }
+    $googleChatBodyJson = $googleChatBody | ConvertTo-Json
+    Write-Host "Sending to Google Chat"
+    Invoke-RestMethod -Uri $googleChatWebhookUrl -Method Post -Body $googleChatBodyJson -ContentType 'application/json'
+}
+
 # Function update slack color
 Function updateSlackColor($body, $point) {
         if ($point -ge 75) {
@@ -134,6 +146,15 @@ Function Send_WebHook($body, $connector) {
     if ($teams -and $connector -eq "teams") {
         Write-Host "Sending to teams"
         return Invoke-RestMethod -Method post -ContentType 'application/Json' -Body $body -Uri $teamsUri
+    }
+    if ($googleChat -eq 1) {
+        # Construct the Google Chat message
+        $googleChatMessage = "Domain *$domainName* - $dateScan - *Global Score $total_point* : `n" +
+                             "Trusts: $str_trusts`n" +
+                             "Stale Object: $str_staleObject`n" +
+                             "Privileged Group: $str_privilegeAccount`n" +
+                             "Anomalies: $str_anomalies"
+        Send_ToGoogleChat $googleChatMessage
     }
 }
 
